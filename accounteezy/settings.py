@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-your-secret-key-here')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() in ['true', '1', 'yes', 'on']
 
-ALLOWED_HOSTS = [s.strip() for s in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')]
+ALLOWED_HOSTS = [s.strip() for s in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,account-eezy-django-production.up.railway.app').split(',')]
 
 
 # Application definition
@@ -57,6 +57,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -190,12 +191,15 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
+CORS_ALLOWED_ORIGINS_FROM_ENV = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',  # React development server
     'http://127.0.0.1:3000',
     'http://localhost:3002',  # React development server (alternate port)
     'http://127.0.0.1:3002',
-]
+    'https://account-eezy-frontend-production.up.railway.app',  # Railway frontend production
+    'https://account-eezy-django-production.up.railway.app',   # Railway backend production
+] + [origin.strip() for origin in CORS_ALLOWED_ORIGINS_FROM_ENV if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
 
