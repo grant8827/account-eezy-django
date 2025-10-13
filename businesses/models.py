@@ -146,6 +146,7 @@ class Business(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'business'
         ordering = ['name']
         indexes = [
             models.Index(fields=['owner']),

@@ -10,6 +10,24 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 
+def root_view(request):
+    """Root endpoint showing server status and available API routes"""
+    return JsonResponse({
+        'message': 'AccountEezy Django Backend is running',
+        'status': 'OK',
+        'version': '1.0',
+        'api_endpoints': {
+            'root': '/api/',
+            'authentication': '/api/auth/',
+            'businesses': '/api/businesses/',
+            'employees': '/api/employees/',
+            'transactions': '/api/transactions/',
+            'payroll': '/api/payroll/',
+            'subscriptions': '/api/subscriptions/',
+            'admin': '/admin/'
+        }
+    })
+
 def api_root(request):
     """API root endpoint showing available API routes"""
     return JsonResponse({
@@ -27,6 +45,7 @@ def api_root(request):
     })
 
 urlpatterns = [
+    path('', root_view, name='root'),  # Root endpoint
     path('admin/', admin.site.urls),
     path('api/', api_root, name='api-root'),
     path('api/auth/', include('authentication.urls')),

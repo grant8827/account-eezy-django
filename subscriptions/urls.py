@@ -19,9 +19,9 @@ urlpatterns = [
     # PayPal payment endpoints
     path('paypal/create-order/', paypal_views.create_paypal_order, name='create-paypal-order'),
     path('paypal/capture-order/', paypal_views.capture_paypal_order, name='capture-paypal-order'),
-    path('paypal/payment/<int:payment_id>/', paypal_views.get_payment_status, name='get-payment-status'),
-    path('paypal/payments/', paypal_views.get_user_payments, name='get-user-payments'),
-    path('paypal/webhook/', paypal_views.paypal_webhook, name='paypal-webhook'),
+    path('paypal/payment-status/<int:payment_id>/', paypal_views.get_payment_status, name='get-payment-status'),
+    path('paypal/user-payments/', paypal_views.get_user_payments, name='get-user-payments'),
     path('paypal/subscription/', paypal_views.get_user_subscription, name='get-user-subscription'),
     path('paypal/simulate-payment/', paypal_views.simulate_payment_success, name='simulate-payment-success'),
+    path('paypal/webhook/', paypal_views.paypal_webhook, name='paypal-webhook'),
 ]

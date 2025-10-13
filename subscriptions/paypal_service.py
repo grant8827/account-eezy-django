@@ -4,7 +4,7 @@ import base64
 import json
 from django.conf import settings
 from django.utils import timezone
-from .paypal_models import PayPalPayment, PayPalWebhook
+from .models import PayPalPayment, PayPalWebhook
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,10 +72,13 @@ class PayPalService:
             if not access_token:
                 return None
             
+            # Handle both authenticated and registration flows
+            user_identifier = payment_data.get('user_id') or payment_data.get('user_email', 'anonymous')
+            
             headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {access_token}',
-                'PayPal-Request-Id': f"order-{payment_data['user_id']}-{timezone.now().timestamp()}"
+                'PayPal-Request-Id': f"order-{user_identifier}-{timezone.now().timestamp()}"
             }
             
             # Convert JMD to USD (approximate rate: 160 JMD = 1 USD)
@@ -89,7 +92,7 @@ class PayPalService:
                         "value": str(usd_amount)
                     },
                     "description": f"AccountEezy {payment_data['plan_name']} Plan - {payment_data['billing_cycle']}",
-                    "custom_id": f"user_{payment_data['user_id']}_plan_{payment_data['plan_type']}"
+                    "custom_id": f"user_{user_identifier}_plan_{payment_data['plan_type']}"
                 }],
                 "application_context": {
                     "brand_name": "AccountEezy",
@@ -110,15 +113,27 @@ class PayPalService:
                 order_response = response.json()
                 
                 # Create PayPalPayment record
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                
+                # Handle user assignment for registration flow
+                user = None
+                if payment_data.get('user_id'):
+                    try:
+                        user = User.objects.get(id=payment_data['user_id'])
+                    except User.DoesNotExist:
+                        pass
+                
                 payment = PayPalPayment.objects.create(
                     paypal_order_id=order_response['id'],
-                    user_id=payment_data['user_id'],
+                    user=user,  # Can be None for registration flow
                     amount=usd_amount,
                     currency='USD',
                     plan_name=payment_data['plan_name'],
                     plan_type=payment_data['plan_type'],
                     billing_cycle=payment_data['billing_cycle'],
                     status='created',
+                    payer_email=payment_data.get('user_email', ''),
                     paypal_create_response=order_response
                 )
                 

@@ -1,8 +1,10 @@
 from django.urls import path
 from . import views
+from . import business_registration
 
 urlpatterns = [
     path('register/', views.register, name='register'),
+    path('register-with-business/', business_registration.register_with_business, name='register_with_business'),
     path('login/', views.login, name='login'),
     path('logout/', views.logout, name='logout'),
     path('profile/', views.profile, name='profile'),

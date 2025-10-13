@@ -12,7 +12,7 @@ import json
 import logging
 
 from .paypal_service import PayPalService
-from .paypal_models import PayPalPayment, PayPalWebhook
+from .models import PayPalPayment, PayPalWebhook
 from .models import Subscription
 from .serializers import SubscriptionSerializer
 
@@ -21,9 +21,9 @@ User = get_user_model()
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # Allow anonymous for registration flow
 def create_paypal_order(request):
-    """Create a PayPal order for subscription payment"""
+    """Create a PayPal order for subscription payment - supports both authenticated and registration flows"""
     try:
         data = request.data
         required_fields = ['plan_name', 'plan_type', 'billing_cycle', 'amount']
@@ -36,9 +36,23 @@ def create_paypal_order(request):
                     'error': f'Missing required field: {field}'
                 }, status=status.HTTP_400_BAD_REQUEST)
         
+        # Handle both authenticated users and registration flow
+        user = None
+        user_email = data.get('user_email', '')
+        
+        if request.user.is_authenticated:
+            user = request.user
+            user_email = user.email
+        elif not user_email:
+            return Response({
+                'success': False,
+                'error': 'User email is required for unauthenticated requests'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         # Prepare payment data
         payment_data = {
-            'user_id': request.user.id,
+            'user_id': user.id if user else None,
+            'user_email': user_email,
             'plan_name': data['plan_name'],
             'plan_type': data['plan_type'],
             'billing_cycle': data['billing_cycle'],
@@ -72,7 +86,7 @@ def create_paypal_order(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])  # Allow anonymous for registration flow
 def capture_paypal_order(request):
     """Capture a PayPal order after user approval"""
     try:
@@ -83,16 +97,20 @@ def capture_paypal_order(request):
                 'error': 'order_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Verify the payment belongs to the current user
+        # Find the payment - handle both authenticated and unauthenticated flows
         try:
-            payment = PayPalPayment.objects.get(
-                paypal_order_id=order_id,
-                user=request.user
-            )
+            if request.user.is_authenticated:
+                payment = PayPalPayment.objects.get(
+                    paypal_order_id=order_id,
+                    user=request.user
+                )
+            else:
+                # For registration flow, find by order ID only
+                payment = PayPalPayment.objects.get(paypal_order_id=order_id)
         except PayPalPayment.DoesNotExist:
             return Response({
                 'success': False,
-                'error': 'Payment not found or unauthorized'
+                'error': 'Payment not found'
             }, status=status.HTTP_404_NOT_FOUND)
         
         # Capture the order

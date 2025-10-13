@@ -1,8 +1,10 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 from decimal import Decimal
 from datetime import datetime, timedelta
+import json
 
 
 class Subscription(models.Model):
@@ -295,3 +297,123 @@ class PaymentHistory(models.Model):
     
     def __str__(self):
         return f"{self.subscription.business.business_name} - {self.amount} {self.currency} - {self.get_status_display()}"
+
+
+# PayPal Integration Models
+
+class PayPalPayment(models.Model):
+    """Model to track PayPal payments for subscriptions"""
+    
+    STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('approved', 'Approved'),
+        ('captured', 'Captured'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    INTENT_CHOICES = [
+        ('capture', 'Capture'),
+        ('authorize', 'Authorize'),
+    ]
+    
+    # Payment Identification
+    paypal_order_id = models.CharField(max_length=100, unique=True)
+    paypal_payment_id = models.CharField(max_length=100, blank=True)
+    paypal_payer_id = models.CharField(max_length=100, blank=True)
+    
+    # User and Subscription Info
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='paypal_payments')
+    # subscription = models.ForeignKey('Subscription', on_delete=models.SET_NULL, null=True, blank=True, related_name='paypal_payments')
+    
+    # Payment Details
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    currency = models.CharField(max_length=3, default='USD')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
+    intent = models.CharField(max_length=20, choices=INTENT_CHOICES, default='capture')
+    
+    # Plan Information
+    plan_name = models.CharField(max_length=50)
+    plan_type = models.CharField(max_length=20)
+    billing_cycle = models.CharField(max_length=20)
+    
+    # PayPal Response Data
+    paypal_create_response = models.JSONField(default=dict, blank=True)
+    paypal_capture_response = models.JSONField(default=dict, blank=True)
+    paypal_webhook_data = models.JSONField(default=dict, blank=True)
+    
+    # Payer Information
+    payer_email = models.EmailField(blank=True)
+    payer_name = models.CharField(max_length=100, blank=True)
+    payer_country = models.CharField(max_length=2, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    captured_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Failure tracking
+    failure_reason = models.TextField(blank=True)
+    retry_count = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['paypal_order_id']),
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"PayPal Payment {self.paypal_order_id} - {self.amount} {self.currency} - {self.get_status_display()}"
+    
+    def is_successful(self):
+        """Check if payment was successful"""
+        return self.status in ['captured', 'completed']
+    
+    def is_pending(self):
+        """Check if payment is pending"""
+        return self.status in ['created', 'approved']
+    
+    def is_failed(self):
+        """Check if payment failed"""
+        return self.status in ['cancelled', 'failed']
+
+
+class PayPalWebhook(models.Model):
+    """Model to track PayPal webhook events"""
+    
+    EVENT_TYPES = [
+        ('PAYMENT.CAPTURE.COMPLETED', 'Payment Capture Completed'),
+        ('PAYMENT.CAPTURE.DENIED', 'Payment Capture Denied'),
+        ('PAYMENT.CAPTURE.PENDING', 'Payment Capture Pending'),
+        ('PAYMENT.CAPTURE.REFUNDED', 'Payment Capture Refunded'),
+        ('CHECKOUT.ORDER.APPROVED', 'Checkout Order Approved'),
+        ('CHECKOUT.ORDER.COMPLETED', 'Checkout Order Completed'),
+        ('BILLING.SUBSCRIPTION.CREATED', 'Billing Subscription Created'),
+        ('BILLING.SUBSCRIPTION.CANCELLED', 'Billing Subscription Cancelled'),
+    ]
+    
+    webhook_id = models.CharField(max_length=100, unique=True)
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
+    resource_id = models.CharField(max_length=100)  # PayPal order/payment ID
+    webhook_data = models.JSONField()
+    processed = models.BooleanField(default=False)
+    processing_error = models.TextField(blank=True)
+    related_payment = models.ForeignKey(PayPalPayment, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['webhook_id']),
+            models.Index(fields=['event_type', 'processed']),
+            models.Index(fields=['resource_id']),
+        ]
+    
+    def __str__(self):
+        return f"PayPal Webhook {self.webhook_id} - {self.event_type}"
