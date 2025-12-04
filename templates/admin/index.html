@@ -1,0 +1,150 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div style="background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+    <h2 style="color: #C7AE6A; margin: 0 0 15px 0;">📊 AccountEezy Analytics Dashboard</h2>
+    <p style="margin-bottom: 15px; color: #666;">Monitor your application's performance with comprehensive statistics and insights.</p>
+    
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="{% url 'admin:admin_statistics' %}" 
+           style="background: #C7AE6A; color: white; padding: 10px 20px; border-radius: 6px; 
+                  text-decoration: none; font-weight: bold; display: inline-flex; 
+                  align-items: center; gap: 8px;">
+            📈 View Statistics Dashboard
+        </a>
+        
+        <a href="{% url 'admin:admin_export_data' %}?format=json" 
+           style="background: #2196F3; color: white; padding: 10px 20px; border-radius: 6px; 
+                  text-decoration: none; font-weight: bold; display: inline-flex; 
+                  align-items: center; gap: 8px;">
+            📥 Export JSON Data
+        </a>
+        
+        <a href="{% url 'admin:admin_export_data' %}?format=csv" 
+           style="background: #4CAF50; color: white; padding: 10px 20px; border-radius: 6px; 
+                  text-decoration: none; font-weight: bold; display: inline-flex; 
+                  align-items: center; gap: 8px;">
+            📊 Export CSV Report
+        </a>
+    </div>
+    
+    <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7;">
+        <small style="color: #856404;">
+            <strong>💡 Pro Tip:</strong> Use the statistics dashboard to monitor user growth, 
+            business registrations, and system performance. Export data for detailed analysis 
+            and reporting.
+        </small>
+    </div>
+</div>
+
+{{ block.super }}
+
+<style>
+.dashboard-stats-widget {
+    background: linear-gradient(135deg, #C7AE6A, #d5c28f);
+    color: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.dashboard-stats-widget h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    display: block;
+}
+
+.stat-label {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .dashboard-stats-widget {
+        margin: 10px;
+    }
+    
+    .quick-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script>
+// Add quick stats widget to admin index
+document.addEventListener('DOMContentLoaded', function() {
+    // Fetch quick stats and display them
+    fetch('{% url "admin:admin_statistics" %}', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.user_stats && data.business_stats) {
+            const widget = document.createElement('div');
+            widget.className = 'dashboard-stats-widget';
+            widget.innerHTML = `
+                <h3>📊 Quick System Overview</h3>
+                <p>Real-time statistics from your AccountEezy application</p>
+                <div class="quick-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">${data.user_stats.total_users || 0}</span>
+                        <span class="stat-label">Total Users</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.user_stats.active_users || 0}</span>
+                        <span class="stat-label">Active Users</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.business_stats.total_businesses || 0}</span>
+                        <span class="stat-label">Total Businesses</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.business_stats.active_businesses || 0}</span>
+                        <span class="stat-label">Active Businesses</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.employee_stats.total_employees || 0}</span>
+                        <span class="stat-label">Total Employees</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${data.system_stats.active_sessions || 0}</span>
+                        <span class="stat-label">Active Sessions</span>
+                    </div>
+                </div>
+            `;
+            
+            // Insert after the analytics dashboard section
+            const analyticsSection = document.querySelector('.dashboard-stats-widget').parentNode;
+            if (analyticsSection) {
+                analyticsSection.insertBefore(widget, analyticsSection.children[1]);
+            }
+        }
+    })
+    .catch(error => {
+        console.log('Could not load quick stats:', error);
+    });
+});
+</script>
+{% endblock %}

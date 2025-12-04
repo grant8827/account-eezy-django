@@ -30,6 +30,7 @@ class Business(models.Model):
         ('Healthcare', 'Healthcare'),
         ('Hospitality', 'Hospitality'),
         ('Entertainment', 'Entertainment'),
+        ('Media', 'Media'),
         ('Government', 'Government'),
         ('Other', 'Other'),
     ]
@@ -78,7 +79,7 @@ class Business(models.Model):
     
     # Basic Information
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_businesses')
-    name = models.CharField(max_length=100)
+    business_name = models.CharField(max_length=100)
     registration_number = models.CharField(max_length=50, unique=True)
     trn = models.CharField(
         max_length=9,
@@ -147,7 +148,7 @@ class Business(models.Model):
     
     class Meta:
         db_table = 'business'
-        ordering = ['name']
+        ordering = ['business_name']
         indexes = [
             models.Index(fields=['owner']),
             models.Index(fields=['trn']),
@@ -157,7 +158,7 @@ class Business(models.Model):
         ]
     
     def __str__(self):
-        return self.name
+        return self.business_name
     
     @property
     def employee_count(self):

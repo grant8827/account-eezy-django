@@ -1,0 +1,334 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:"Django site admin" }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">AccountEezy Admin</a>
+</h1>
+{% endblock %}
+
+{% block nav-breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; Statistics Dashboard
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="statistics-dashboard">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stats-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stats-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            border-bottom: 2px solid #C7AE6A;
+            padding-bottom: 8px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #C7AE6A;
+        }
+        .percentage {
+            color: #4caf50;
+        }
+        .percentage.low {
+            color: #ff9800;
+        }
+        .percentage.critical {
+            color: #f44336;
+        }
+        .export-buttons {
+            margin: 20px 0;
+            text-align: right;
+        }
+        .export-btn {
+            background: #C7AE6A;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .export-btn:hover {
+            background: #b99a45;
+            color: white;
+        }
+        .chart-container {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .distribution-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .distribution-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+
+    <h1>{{ title }}</h1>
+    
+    <div class="export-buttons">
+        <a href="{% url 'admin:admin_export_data' %}?format=json" class="export-btn">Export JSON</a>
+        <a href="{% url 'admin:admin_export_data' %}?format=csv" class="export-btn">Export CSV</a>
+    </div>
+
+    <div class="stats-grid">
+        <!-- User Statistics -->
+        <div class="stats-card">
+            <h3>👥 User Statistics</h3>
+            <div class="metric">
+                <span class="metric-label">Total Users</span>
+                <span class="metric-value">{{ user_stats.total_users }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Active Users</span>
+                <span class="metric-value">{{ user_stats.active_users }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Verified Users</span>
+                <span class="metric-value">{{ user_stats.verified_users }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Suspended Users</span>
+                <span class="metric-value">{{ user_stats.suspended_users }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">New Users (30d)</span>
+                <span class="metric-value">{{ user_stats.new_users_30d }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Active Rate</span>
+                <span class="metric-value percentage">{{ user_stats.active_rate|floatformat:1 }}%</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Verification Rate</span>
+                <span class="metric-value percentage">{{ user_stats.verification_rate|floatformat:1 }}%</span>
+            </div>
+        </div>
+
+        <!-- Business Statistics -->
+        <div class="stats-card">
+            <h3>🏢 Business Statistics</h3>
+            {% if business_stats.error %}
+                <p style="color: #ff9800;">{{ business_stats.error }}</p>
+            {% else %}
+                <div class="metric">
+                    <span class="metric-label">Total Businesses</span>
+                    <span class="metric-value">{{ business_stats.total_businesses }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Businesses</span>
+                    <span class="metric-value">{{ business_stats.active_businesses }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">New Businesses (30d)</span>
+                    <span class="metric-value">{{ business_stats.new_businesses_30d }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Revenue</span>
+                    <span class="metric-value">JMD ${{ business_stats.total_revenue|floatformat:2 }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Average Revenue</span>
+                    <span class="metric-value">JMD ${{ business_stats.average_revenue|floatformat:2 }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Rate</span>
+                    <span class="metric-value percentage">{{ business_stats.active_rate|floatformat:1 }}%</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Employee Statistics -->
+        <div class="stats-card">
+            <h3>👨‍💼 Employee Statistics</h3>
+            {% if employee_stats.error %}
+                <p style="color: #ff9800;">{{ employee_stats.error }}</p>
+            {% else %}
+                <div class="metric">
+                    <span class="metric-label">Total Employees</span>
+                    <span class="metric-value">{{ employee_stats.total_employees }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Employees</span>
+                    <span class="metric-value">{{ employee_stats.active_employees }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">New Employees (30d)</span>
+                    <span class="metric-value">{{ employee_stats.new_employees_30d }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active Rate</span>
+                    <span class="metric-value percentage">{{ employee_stats.active_rate|floatformat:1 }}%</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- System Statistics -->
+        <div class="stats-card">
+            <h3>⚙️ System Statistics</h3>
+            <div class="metric">
+                <span class="metric-label">Active Sessions</span>
+                <span class="metric-value">{{ system_stats.active_sessions }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Recent Admin Actions (7d)</span>
+                <span class="metric-value">{{ system_stats.recent_admin_actions }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Total Records</span>
+                <span class="metric-value">{{ system_stats.total_records }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">User Records</span>
+                <span class="metric-value">{{ system_stats.user_records }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Business Records</span>
+                <span class="metric-value">{{ system_stats.business_records }}</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Employee Records</span>
+                <span class="metric-value">{{ system_stats.employee_records }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Role Distribution -->
+    {% if user_stats.role_distribution %}
+    <div class="stats-card">
+        <h3>📊 User Role Distribution</h3>
+        <div class="chart-container">
+            {% for role in user_stats.role_distribution %}
+                <div class="distribution-item">
+                    <span>{{ role.role|title }}</span>
+                    <span><strong>{{ role.count }}</strong></span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Parish Distribution -->
+    {% if user_stats.parish_distribution %}
+    <div class="stats-card">
+        <h3>🗺️ User Parish Distribution (Top 10)</h3>
+        <div class="chart-container">
+            {% for parish in user_stats.parish_distribution %}
+                <div class="distribution-item">
+                    <span>{{ parish.parish|default:"Not Specified" }}</span>
+                    <span><strong>{{ parish.count }}</strong></span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Business Subscription Distribution -->
+    {% if business_stats.subscription_distribution and not business_stats.error %}
+    <div class="stats-card">
+        <h3>💳 Subscription Status Distribution</h3>
+        <div class="chart-container">
+            {% for sub in business_stats.subscription_distribution %}
+                <div class="distribution-item">
+                    <span>{{ sub.subscription_status|title }}</span>
+                    <span><strong>{{ sub.count }}</strong></span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Business Plan Distribution -->
+    {% if business_stats.plan_distribution and not business_stats.error %}
+    <div class="stats-card">
+        <h3>📋 Business Plan Distribution</h3>
+        <div class="chart-container">
+            {% for plan in business_stats.plan_distribution %}
+                <div class="distribution-item">
+                    <span>{{ plan.subscription_plan|title }}</span>
+                    <span><strong>{{ plan.count }}</strong></span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Industry Distribution -->
+    {% if business_stats.industry_distribution and not business_stats.error %}
+    <div class="stats-card">
+        <h3>🏭 Industry Distribution (Top 10)</h3>
+        <div class="chart-container">
+            {% for industry in business_stats.industry_distribution %}
+                <div class="distribution-item">
+                    <span>{{ industry.industry }}</span>
+                    <span><strong>{{ industry.count }}</strong></span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="margin: 30px 0; text-align: center; color: #666;">
+        <p>Dashboard generated at {{ generated_at|date:"F j, Y, g:i A" }}</p>
+        <p>
+            <a href="{% url 'admin:index' %}" style="color: #C7AE6A;">← Back to Admin Home</a>
+        </p>
+    </div>
+</div>
+
+<script>
+// Auto-refresh functionality (optional)
+function refreshDashboard() {
+    if (confirm('Refresh dashboard data?')) {
+        window.location.reload();
+    }
+}
+
+// Add refresh button
+document.addEventListener('DOMContentLoaded', function() {
+    const exportButtons = document.querySelector('.export-buttons');
+    const refreshBtn = document.createElement('button');
+    refreshBtn.textContent = 'Refresh Data';
+    refreshBtn.className = 'export-btn';
+    refreshBtn.onclick = refreshDashboard;
+    exportButtons.appendChild(refreshBtn);
+});
+</script>
+{% endblock %}

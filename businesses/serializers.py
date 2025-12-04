@@ -4,17 +4,22 @@ from .models import Business
 
 class BusinessListSerializer(serializers.ModelSerializer):
     owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
-    employee_count = serializers.SerializerMethodField()
+    # Temporarily removing employee_count to avoid database issues
+    # employee_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Business
         fields = [
             'id', 'business_name', 'business_type', 'industry', 'parish',
-            'owner_name', 'employee_count', 'status', 'created_at'
+            'owner_name', 'subscription_status', 'created_at'
         ]
     
-    def get_employee_count(self, obj):
-        return obj.employees.filter(status='active').count()
+    # def get_employee_count(self, obj):
+    #     try:
+    #         return obj.employees.filter(is_active=True).count()
+    #     except Exception:
+    #         # Handle case where employees table might not be accessible
+    #         return 0
 
 
 class BusinessDetailSerializer(serializers.ModelSerializer):
@@ -28,10 +33,16 @@ class BusinessDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'owner', 'created_at', 'updated_at')
     
     def get_employee_count(self, obj):
-        return obj.employees.filter(status='active').count()
+        try:
+            return obj.employees.filter(is_active=True).count()
+        except Exception:
+            return 0
     
     def get_active_employees(self, obj):
-        return obj.employees.filter(status='active').count()
+        try:
+            return obj.employees.filter(is_active=True).count()
+        except Exception:
+            return 0
 
 
 class BusinessCreateSerializer(serializers.ModelSerializer):

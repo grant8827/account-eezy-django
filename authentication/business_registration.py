@@ -79,7 +79,7 @@ def register_with_business(request):
             'tokens': tokens
         }
         
-        # Handle business creation
+        # Handle comprehensive business creation
         payment_id = request.data.get('payment_id')
         business_name = request.data.get('business_name')
         
@@ -109,55 +109,105 @@ def register_with_business(request):
             
             # Generate unique business identifiers
             unique_suffix = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID for uniqueness
-            registration_number = f"REG-{user.id}-{datetime.now().strftime('%Y%m%d')}-{unique_suffix}"
-            trn_number = request.data.get('trn')
             
-            # If no TRN provided, generate a unique one
+            # Use provided registration number or generate one
+            registration_number = request.data.get('registration_number')
+            if not registration_number:
+                registration_number = f"REG-{user.id}-{datetime.now().strftime('%Y%m%d')}-{unique_suffix}"
+            
+            # Handle TRN - use provided or generate
+            trn_number = request.data.get('trn')
             if not trn_number or len(str(trn_number)) != 9:
                 # Generate a unique 9-digit TRN using timestamp and user ID
                 timestamp_suffix = str(int(datetime.now().timestamp()))[-4:]  # Last 4 digits of timestamp
                 user_id_padded = f"{user.id:05d}"  # Pad user ID to 5 digits
                 trn_number = f"{user_id_padded}{timestamp_suffix}"  # 5 digits user ID + 4 digits timestamp = 9 digits
                 
-            # Ensure TRN is always a string and not empty
-            trn_number = str(trn_number) if trn_number else f"{user.id:09d}"
+            # Ensure TRN is always a string and exactly 9 digits
+            trn_number = str(trn_number)[:9] if trn_number else f"{user.id:09d}"
+            
+            # Handle NIS (optional)
+            nis_number = request.data.get('nis', '')
+            if nis_number and len(str(nis_number)) != 9:
+                nis_number = ''  # Clear invalid NIS
             
             # Debug logging
             print(f"Generated registration_number: {registration_number}")
             print(f"Generated trn_number: {trn_number}")
+            print(f"NIS number: {nis_number}")
             
-            # Create business with all required fields
+            # Create business with comprehensive fields
             business = Business.objects.create(
                 owner=user,
-                name=business_name,
+                business_name=business_name,  # Use business_name field
                 registration_number=registration_number,
                 trn=trn_number,
+                nis=nis_number,
                 business_type=request.data.get('business_type', 'Other'),
                 industry=request.data.get('industry', 'Other'),
-                street=request.data.get('address', 'Not specified'),
+                
+                # Address information
+                street=request.data.get('street', 'Not specified'),
                 city=request.data.get('city', 'Kingston'),
                 parish=request.data.get('parish', 'Kingston'),
-                phone=request.data.get('phone', getattr(user, 'phone', None) or '8765551234'),
+                postal_code=request.data.get('postal_code', ''),
+                country=request.data.get('country', 'Jamaica'),
+                
+                # Contact information
+                phone=request.data.get('business_phone', request.data.get('phone', getattr(user, 'phone', None) or '8765551234')),
                 email=request.data.get('business_email', user.email),
+                website=request.data.get('website', ''),
+                
+                # Business settings
                 subscription_status='active' if payment else 'trial',
-                fiscal_year_end=date(datetime.now().year, 12, 31)  # Set fiscal year end to December 31
+                subscription_plan=plan_name.lower() if plan_name else 'basic',
+                pay_period='monthly',
+                pay_day=28,
+                overtime_rate=1.5,
+                public_holiday_rate=2.0,
+                paye_registered=False,
+                nis_registered=bool(nis_number),
+                education_tax_registered=False,
+                heart_trust_registered=False,
+                gct_registered=False,
+                tax_year=datetime.now().year,
+                fiscal_year_end=date(datetime.now().year, 12, 31),
+                currency='JMD',
+                timezone='America/Jamaica',
+                date_format='DD/MM/YYYY',
+                email_notifications=True,
+                sms_notifications=False
             )
             
-            print(f"Business created successfully: {business.name} (ID: {business.id})")
+            print(f"Business created successfully: {business.business_name} (ID: {business.id})")
             
             # Skip subscription creation for now due to model/table mismatch
             # TODO: Fix subscription model table name mismatch (expects subscriptions_subscription, but table is 'subscription')
             subscription = None
             print("Subscription creation skipped due to model/table mismatch")
             
-            # Add business info to response
+            # Add comprehensive business info to response
             response_data.update({
                 'business': {
                     'id': business.id,
-                    'name': business.name,
+                    'business_name': business.business_name,
                     'registration_number': business.registration_number,
                     'trn': business.trn,
-                    'subscription_status': business.subscription_status
+                    'nis': business.nis,
+                    'business_type': business.business_type,
+                    'industry': business.industry,
+                    'street': business.street,
+                    'city': business.city,
+                    'parish': business.parish,
+                    'postal_code': business.postal_code,
+                    'country': business.country,
+                    'phone': business.phone,
+                    'email': business.email,
+                    'website': business.website,
+                    'subscription_status': business.subscription_status,
+                    'subscription_plan': business.subscription_plan,
+                    'is_active': True,
+                    'created_at': business.created_at.isoformat() if hasattr(business, 'created_at') else None
                 },
                 'subscription': {
                     'plan_name': plan_name,

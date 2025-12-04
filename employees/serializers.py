@@ -1,9 +1,12 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import (
     Employee, EmployeeAllowance, EmployeeBenefit, EmployeeDocument,
     EmployeeLeaveRequest, EmployeePerformanceReview, EmployeeDisciplinaryAction, WorkDay
 )
 from authentication.serializers import UserSerializer
+
+User = get_user_model()
 
 
 class WorkDaySerializer(serializers.ModelSerializer):
@@ -139,12 +142,25 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
 
 class EmployeeCreateSerializer(serializers.ModelSerializer):
+    user_data = serializers.DictField(write_only=True)
     work_days = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+    
+    def validate_user_data(self, value):
+        email = value.get('email')
+        if not email:
+            raise serializers.ValidationError("Email is required in user_data")
+        
+        # Check if this email already has an employee record for this business
+        business = self.context.get('business')  # Will be passed from the view
+        if business and User.objects.filter(email=email, employee_profiles__business=business).exists():
+            raise serializers.ValidationError(f"An employee with email {email} already exists for this business")
+        
+        return value
     
     class Meta:
         model = Employee
         fields = [
-            'user', 'business', 'date_of_birth', 'gender', 'marital_status', 'nationality',
+            'user_data', 'business', 'date_of_birth', 'gender', 'marital_status', 'nationality',
             'emergency_contact_name', 'emergency_contact_relationship',
             'emergency_contact_phone', 'emergency_contact_address',
             'position', 'department', 'start_date', 'employment_type',
@@ -159,7 +175,34 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
         ]
     
     def create(self, validated_data):
+        user_data = validated_data.pop('user_data')
         work_days = validated_data.pop('work_days', [])
+        
+        # Check if user already exists
+        try:
+            user = User.objects.get(email=user_data['email'])
+            # Update user info if needed (optional)
+            user.first_name = user_data['first_name']
+            user.last_name = user_data['last_name']
+            user.phone = user_data.get('phone', user.phone)
+            if user_data.get('role') and not user.role:
+                user.role = user_data.get('role', 'employee')
+            user.save()
+        except User.DoesNotExist:
+            # Create the user if it doesn't exist
+            user = User.objects.create_user(
+                email=user_data['email'],
+                password=user_data['password'],
+                first_name=user_data['first_name'],
+                last_name=user_data['last_name'],
+                phone=user_data.get('phone', ''),
+                role=user_data.get('role', 'employee')
+            )
+        
+        # Add the user to the employee data
+        validated_data['user'] = user
+        
+        # Create the employee
         employee = Employee.objects.create(**validated_data)
         
         # Create work days

@@ -30,14 +30,15 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         tokens = get_tokens_for_user(user)
-        return Response({
-            'success': True,
-            'message': 'User registered successfully',
-            'data': {
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }
-        }, status=status.HTTP_201_CREATED)
+    return Response({
+        'success': True,
+        'message': 'User registered successfully',
+        'data': {
+            'user': UserSerializer(user).data,
+            'token': tokens['token'],
+            'refreshToken': tokens['refreshToken']
+        }
+    }, status=status.HTTP_201_CREATED)
     
     return Response({
         'success': False,
@@ -64,7 +65,8 @@ def login(request):
             'message': 'Login successful',
             'data': {
                 'user': UserSerializer(user).data,
-                'tokens': tokens
+                'token': tokens['token'],
+                'refreshToken': tokens['refreshToken']
             }
         })
     
@@ -151,6 +153,44 @@ def change_password(request):
         'message': 'Password change failed',
         'errors': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_token(request):
+    """Refresh JWT token endpoint"""
+    try:
+        refresh_token = request.data.get('refreshToken') or request.data.get('refresh')
+        
+        if not refresh_token:
+            return Response({
+                'success': False,
+                'message': 'Refresh token is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            refresh = RefreshToken(refresh_token)
+            user = User.objects.get(id=refresh.payload['user_id'])
+            tokens = get_tokens_for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': 'Token refreshed successfully',
+                'data': tokens
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': 'Invalid or expired refresh token',
+                'error': str(e)
+            }, status=status.HTTP_401_UNAUTHORIZED)
+            
+    except Exception as e:
+        return Response({
+            'success': False,
+            'message': 'Token refresh failed',
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])

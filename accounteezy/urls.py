@@ -9,6 +9,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
+from businesses.views import user_dashboard_summary
 
 def root_view(request):
     """Root endpoint showing server status and available API routes"""
@@ -48,6 +49,7 @@ urlpatterns = [
     path('', root_view, name='root'),  # Root endpoint
     path('admin/', admin.site.urls),
     path('api/', api_root, name='api-root'),
+    path('api/dashboard/summary/', user_dashboard_summary, name='dashboard-summary'),
     path('api/auth/', include('authentication.urls')),
     path('api/businesses/', include('businesses.urls')),
     path('api/employees/', include('employees.urls')),

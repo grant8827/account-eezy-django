@@ -23,6 +23,15 @@ def business_list_create(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
+        # Enforce one business per account rule
+        existing_business = Business.objects.filter(owner=request.user).first()
+        if existing_business:
+            return Response({
+                'error': 'Account already has a business. Each account can only have one business.',
+                'existing_business_id': existing_business.id,
+                'existing_business_name': existing_business.business_name
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = BusinessCreateSerializer(data=request.data)
         if serializer.is_valid():
             business = serializer.save(owner=request.user)
@@ -167,3 +176,76 @@ def business_dashboard(request, pk):
     }
     
     return Response(dashboard_data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_dashboard_summary(request):
+    """Get dashboard summary data for all user's businesses"""
+    user_businesses = Business.objects.filter(owner=request.user)
+    
+    # Aggregate metrics across all businesses
+    total_businesses = user_businesses.count()
+    total_employees = Employee.objects.filter(
+        business__in=user_businesses, 
+        is_active=True
+    ).count()
+    
+    # Financial summary (current month)
+    from datetime import datetime, date
+    current_month = date.today().replace(day=1)
+    
+    monthly_payroll_total = Payroll.objects.filter(
+        business__in=user_businesses,
+        pay_period_start__gte=current_month,
+        status='paid'
+    ).aggregate(total=Sum('net_pay'))['total'] or Decimal('0')
+    
+    pending_transactions = Transaction.objects.filter(
+        business__in=user_businesses,
+        status='pending'
+    ).count()
+    
+    # Recent transactions for display
+    recent_transactions = Transaction.objects.filter(
+        business__in=user_businesses
+    ).order_by('-transaction_date')[:10]
+    
+    transaction_data = []
+    for transaction in recent_transactions:
+        transaction_data.append({
+            'id': transaction.id,
+            'business_name': transaction.business.business_name,
+            'description': transaction.description,
+            'amount': str(transaction.amount),
+            'transaction_type': transaction.transaction_type,
+            'transaction_date': transaction.transaction_date,
+            'status': transaction.status,
+        })
+    
+    # Business list with basic info
+    business_data = []
+    for business in user_businesses:
+        business_data.append({
+            'id': business.id,
+            'business_name': business.business_name,
+            'business_type': business.business_type,
+            'registration_number': business.registration_number,
+            'created_at': business.created_at,
+        })
+    
+    summary_data = {
+        'summary': {
+            'totalBusinesses': total_businesses,
+            'totalEmployees': total_employees,
+            'monthlyPayroll': str(monthly_payroll_total),
+            'pendingTransactions': pending_transactions,
+        },
+        'businesses': business_data,
+        'recentTransactions': transaction_data,
+    }
+    
+    return Response({
+        'success': True,
+        'data': summary_data
+    })

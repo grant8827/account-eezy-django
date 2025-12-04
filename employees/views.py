@@ -51,7 +51,7 @@ def employee_list_create(request, business_id):
     elif request.method == 'POST':
         data = request.data.copy()
         data['business'] = business.id
-        serializer = EmployeeCreateSerializer(data=data)
+        serializer = EmployeeCreateSerializer(data=data, context={'business': business})
         if serializer.is_valid():
             employee = serializer.save(business=business)
             response_serializer = EmployeeSerializer(employee)
