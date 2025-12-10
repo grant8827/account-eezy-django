@@ -9,4 +9,5 @@ urlpatterns = [
     path('<int:business_id>/<int:pk>/pay/', views.mark_payroll_paid, name='mark-payroll-paid'),
     path('<int:business_id>/summary/', views.payroll_summary, name='payroll-summary'),
     path('<int:business_id>/tax-report/', views.generate_tax_report, name='generate-tax-report'),
+    path('<int:business_id>/employees/', views.payroll_employees, name='payroll-employees'),
 ]

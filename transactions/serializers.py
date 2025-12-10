@@ -18,6 +18,13 @@ class TransactionSerializer(serializers.ModelSerializer):
     approved_by_name = serializers.CharField(source='approved_by.get_full_name', read_only=True)
     reconciled_by_name = serializers.CharField(source='reconciled_by.get_full_name', read_only=True)
     attachments = TransactionAttachmentSerializer(many=True, read_only=True)
+    business = serializers.SerializerMethodField()
+    
+    def get_business(self, obj):
+        return {
+            'id': obj.business.id,
+            'business_name': obj.business.business_name
+        }
     
     class Meta:
         model = Transaction

@@ -109,6 +109,7 @@ class Payroll(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'payroll'
         ordering = ['-pay_period_start', '-created_at']
         indexes = [
             models.Index(fields=['business', 'pay_period_start']),

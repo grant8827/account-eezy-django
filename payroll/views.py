@@ -232,3 +232,41 @@ def generate_tax_report(request, business_id):
     
     serializer = PayrollTaxReportSerializer(report_data)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def payroll_employees(request, business_id):
+    """Get all active employees for payroll processing"""
+    business = get_object_or_404(Business, id=business_id, owner=request.user)
+    
+    employees = Employee.objects.filter(
+        business=business,
+        is_active=True
+    ).select_related('user').order_by('user__first_name', 'user__last_name')
+    
+    employee_data = []
+    for employee in employees:
+        employee_data.append({
+            'id': employee.id,
+            'employee_id': employee.employee_id,
+            'first_name': employee.user.first_name,
+            'last_name': employee.user.last_name,
+            'full_name': employee.full_name,
+            'position': employee.position,
+            'department': employee.department,
+            'base_salary_amount': str(employee.base_salary_amount),
+            'salary_frequency': employee.salary_frequency,
+            'employment_type': employee.employment_type,
+            'start_date': employee.start_date,
+            'trn': employee.trn,
+            'nis': employee.nis
+        })
+    
+    return Response({
+        'success': True,
+        'data': {
+            'employees': employee_data,
+            'count': len(employee_data)
+        }
+    })

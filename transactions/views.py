@@ -214,7 +214,9 @@ def transaction_categories(request, business_id):
 def all_transactions(request):
     """Get all transactions across all user's businesses"""
     businesses = Business.objects.filter(owner=request.user)
-    transactions = Transaction.objects.filter(business__in=businesses)
+    transactions = Transaction.objects.filter(business__in=businesses).select_related(
+        'business', 'created_by', 'approved_by', 'reconciled_by'
+    ).prefetch_related('attachments')
     
     # Apply same filters as business-specific endpoint
     start_date = request.query_params.get('start_date')

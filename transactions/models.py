@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from datetime import datetime
+from decimal import Decimal
 
 
 class Transaction(models.Model):
@@ -129,16 +130,33 @@ class Transaction(models.Model):
         # Generate transaction number if not provided
         if not self.transaction_number:
             year = datetime.now().year
-            count = Transaction.objects.filter(business=self.business).count()
-            self.transaction_number = f"TXN-{year}-{str(count + 1).zfill(6)}"
+            business_id = self.business.id
+            # Find the highest existing transaction number for this business and year
+            existing_transactions = Transaction.objects.filter(
+                business=self.business,
+                transaction_number__startswith=f"TXN-{business_id}-{year}-"
+            ).order_by('-transaction_number')
+            
+            if existing_transactions.exists():
+                # Extract number from the highest transaction number
+                last_number = existing_transactions.first().transaction_number
+                try:
+                    last_seq = int(last_number.split('-')[-1])
+                    next_seq = last_seq + 1
+                except (ValueError, IndexError):
+                    next_seq = 1
+            else:
+                next_seq = 1
+                
+            self.transaction_number = f"TXN-{business_id}-{year}-{str(next_seq).zfill(6)}"
         
         # Calculate GCT amount if taxable
         if self.is_taxable and self.gct_rate > 0:
-            self.gct_amount = self.amount * self.gct_rate
+            self.gct_amount = self.amount * Decimal(str(self.gct_rate))
         
         # Calculate withholding tax amount
         if self.withholding_tax_rate > 0:
-            self.withholding_tax_amount = self.amount * self.withholding_tax_rate
+            self.withholding_tax_amount = self.amount * Decimal(str(self.withholding_tax_rate))
         
         super().save(*args, **kwargs)
 

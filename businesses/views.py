@@ -195,11 +195,14 @@ def user_dashboard_summary(request):
     from datetime import datetime, date
     current_month = date.today().replace(day=1)
     
-    monthly_payroll_total = Payroll.objects.filter(
-        business__in=user_businesses,
-        pay_period_start__gte=current_month,
-        status='paid'
-    ).aggregate(total=Sum('net_pay'))['total'] or Decimal('0')
+    try:
+        monthly_payroll_total = Payroll.objects.filter(
+            business__in=user_businesses,
+            pay_period_start__gte=current_month,
+            status='paid'
+        ).aggregate(total=Sum('net_pay'))['total'] or Decimal('0')
+    except Exception:
+        monthly_payroll_total = Decimal('0')
     
     pending_transactions = Transaction.objects.filter(
         business__in=user_businesses,
