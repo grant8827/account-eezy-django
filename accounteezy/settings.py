@@ -203,6 +203,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3002',  # React development server (alternate port)
     'http://127.0.0.1:3002',
+    'https://accounteezy.up.railway.app',  # Current Railway frontend production
     'https://account-eezy-frontend-production.up.railway.app',  # Railway frontend production
     'https://account-eezy-django-production.up.railway.app',   # Railway backend production
 ] + [origin.strip() for origin in CORS_ALLOWED_ORIGINS_FROM_ENV if origin.strip()]
