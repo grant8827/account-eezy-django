@@ -3,6 +3,16 @@
 from django.db import migrations
 
 
+def rename_index_if_exists(old_name, new_name):
+    def _rename(apps, schema_editor):
+        if schema_editor.connection.vendor == 'postgresql':
+            schema_editor.execute(
+                f'ALTER INDEX IF EXISTS "{old_name}" RENAME TO "{new_name}";'
+            )
+
+    return _rename
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,30 +20,25 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameIndex(
-            model_name='payroll',
-            new_name='payroll_busines_088421_idx',
-            old_name='payroll_pay_busines_83e4d7_idx',
+        migrations.RunPython(
+            rename_index_if_exists('payroll_pay_busines_83e4d7_idx', 'payroll_busines_088421_idx'),
+            migrations.RunPython.noop,
         ),
-        migrations.RenameIndex(
-            model_name='payroll',
-            new_name='payroll_employe_b85f62_idx',
-            old_name='payroll_pay_employe_c67df7_idx',
+        migrations.RunPython(
+            rename_index_if_exists('payroll_pay_employe_c67df7_idx', 'payroll_employe_b85f62_idx'),
+            migrations.RunPython.noop,
         ),
-        migrations.RenameIndex(
-            model_name='payroll',
-            new_name='payroll_payroll_24a73d_idx',
-            old_name='payroll_pay_payroll_77eef1_idx',
+        migrations.RunPython(
+            rename_index_if_exists('payroll_pay_payroll_77eef1_idx', 'payroll_payroll_24a73d_idx'),
+            migrations.RunPython.noop,
         ),
-        migrations.RenameIndex(
-            model_name='payroll',
-            new_name='payroll_status_ac0f6a_idx',
-            old_name='payroll_pay_status_465a76_idx',
+        migrations.RunPython(
+            rename_index_if_exists('payroll_pay_status_465a76_idx', 'payroll_status_ac0f6a_idx'),
+            migrations.RunPython.noop,
         ),
-        migrations.RenameIndex(
-            model_name='payroll',
-            new_name='payroll_pay_dat_300674_idx',
-            old_name='payroll_pay_pay_dat_008cf5_idx',
+        migrations.RunPython(
+            rename_index_if_exists('payroll_pay_pay_dat_008cf5_idx', 'payroll_pay_dat_300674_idx'),
+            migrations.RunPython.noop,
         ),
         migrations.AlterModelTable(
             name='payroll',
