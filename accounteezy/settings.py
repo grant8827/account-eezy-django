@@ -18,8 +18,10 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file
+# Load environment variables.
+# Base defaults come from .env, and local overrides (if present) come from .env.local.
 load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env.local', override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -90,19 +92,23 @@ WSGI_APPLICATION = 'accounteezy.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+db_engine = os.getenv('DB_ENGINE', 'django.db.backends.postgresql')
+
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+        'ENGINE': db_engine,
         'NAME': os.getenv('DB_NAME', 'accounteezy'),
         'USER': os.getenv('DB_USER', 'accounteezy_user'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'secure_password_123'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'options': '-c default_transaction_isolation=serializable'
-        },
     }
 }
+
+if db_engine == 'django.db.backends.postgresql':
+    DATABASES['default']['OPTIONS'] = {
+        'options': '-c default_transaction_isolation=serializable'
+    }
 
 
 # Password validation

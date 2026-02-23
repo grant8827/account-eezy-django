@@ -10,8 +10,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            'ALTER TABLE business RENAME COLUMN name TO business_name;',
-            'ALTER TABLE business RENAME COLUMN business_name TO name;',
-        ),
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

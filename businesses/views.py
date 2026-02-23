@@ -16,27 +16,28 @@ from payroll.models import Payroll
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def business_list_create(request):
-    """List businesses for authenticated user or create a new business"""
+    """List the single business for the authenticated user or create a new one."""
     if request.method == 'GET':
-        businesses = Business.objects.filter(owner=request.user)
-        serializer = BusinessListSerializer(businesses, many=True)
-        return Response(serializer.data)
-    
+        try:
+            # With OneToOneField, there's at most one business.
+            # We can use the related accessor `business` on the user object.
+            business = request.user.business
+            serializer = BusinessDetailSerializer(business)
+            return Response(serializer.data)
+        except Business.DoesNotExist:
+            return Response({"error": "No business associated with this account."}, status=status.HTTP_404_NOT_FOUND)
+
     elif request.method == 'POST':
-        # Enforce one business per account rule
-        existing_business = Business.objects.filter(owner=request.user).first()
-        if existing_business:
+        if hasattr(request.user, 'business'):
             return Response({
-                'error': 'Account already has a business. Each account can only have one business.',
-                'existing_business_id': existing_business.id,
-                'existing_business_name': existing_business.business_name
+                'error': 'An account can only have one business.',
+                'business_id': request.user.business.id
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = BusinessCreateSerializer(data=request.data)
+
+        serializer = BusinessCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             business = serializer.save(owner=request.user)
-            response_serializer = BusinessDetailSerializer(business)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(BusinessDetailSerializer(business).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -181,37 +182,33 @@ def business_dashboard(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_dashboard_summary(request):
-    """Get dashboard summary data for all user's businesses"""
-    user_businesses = Business.objects.filter(owner=request.user)
-    
-    # Aggregate metrics across all businesses
-    total_businesses = user_businesses.count()
-    total_employees = Employee.objects.filter(
-        business__in=user_businesses, 
-        is_active=True
-    ).count()
+    """Get dashboard summary data for the user's single business."""
+    try:
+        business = request.user.business
+    except Business.DoesNotExist:
+        return Response({"error": "No business associated with this account."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Aggregate metrics for the single business
+    total_employees = Employee.objects.filter(business=business, is_active=True).count()
     
     # Financial summary (current month)
-    from datetime import datetime, date
+    from datetime import date
     current_month = date.today().replace(day=1)
     
-    try:
-        monthly_payroll_total = Payroll.objects.filter(
-            business__in=user_businesses,
-            pay_period_start__gte=current_month,
-            status='paid'
-        ).aggregate(total=Sum('net_pay'))['total'] or Decimal('0')
-    except Exception:
-        monthly_payroll_total = Decimal('0')
+    monthly_payroll_total = Payroll.objects.filter(
+        business=business,
+        pay_period_start__gte=current_month,
+        status='paid'
+    ).aggregate(total=Sum('net_pay'))['total'] or Decimal('0')
     
     pending_transactions = Transaction.objects.filter(
-        business__in=user_businesses,
+        business=business,
         status='pending'
     ).count()
     
     # Recent transactions for display
     recent_transactions = Transaction.objects.filter(
-        business__in=user_businesses
+        business=business
     ).order_by('-transaction_date')[:10]
     
     transaction_data = []
@@ -226,25 +223,14 @@ def user_dashboard_summary(request):
             'status': transaction.status,
         })
     
-    # Business list with basic info
-    business_data = []
-    for business in user_businesses:
-        business_data.append({
-            'id': business.id,
-            'business_name': business.business_name,
-            'business_type': business.business_type,
-            'registration_number': business.registration_number,
-            'created_at': business.created_at,
-        })
-    
     summary_data = {
         'summary': {
-            'totalBusinesses': total_businesses,
+            'totalBusinesses': 1,
             'totalEmployees': total_employees,
             'monthlyPayroll': str(monthly_payroll_total),
             'pendingTransactions': pending_transactions,
         },
-        'businesses': business_data,
+        'business': BusinessDetailSerializer(business).data,
         'recentTransactions': transaction_data,
     }
     

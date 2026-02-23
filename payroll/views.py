@@ -270,3 +270,81 @@ def payroll_employees(request, business_id):
             'count': len(employee_data)
         }
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def process_bulk_payroll(request, business_id):
+    """Process payroll for multiple employees or all employees"""
+    business = get_object_or_404(Business, id=business_id, owner=request.user)
+    
+    period_start = request.data.get('period_start')
+    period_end = request.data.get('period_end')
+    employee_ids = request.data.get('employee_ids', [])  # Empty list means all employees
+    
+    if not period_start or not period_end:
+        return Response({
+            'error': 'period_start and period_end are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        period_start = datetime.strptime(period_start, '%Y-%m-%d').date()
+        period_end = datetime.strptime(period_end, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({
+            'error': 'Invalid date format. Use YYYY-MM-DD'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Get employees to process
+    employees_query = Employee.objects.filter(business=business, is_active=True)
+    if employee_ids:
+        employees_query = employees_query.filter(id__in=employee_ids)
+    
+    employees = employees_query.select_related('user')
+    
+    if not employees.exists():
+        return Response({
+            'error': 'No active employees found for payroll processing'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    created_payrolls = []
+    errors = []
+    
+    for employee in employees:
+        try:
+            # Check if payroll already exists for this period
+            existing_payroll = Payroll.objects.filter(
+                business=business,
+                employee=employee,
+                pay_period_start=period_start,
+                pay_period_end=period_end
+            ).first()
+            
+            if existing_payroll:
+                errors.append(f'Payroll already exists for {employee.full_name} for this period')
+                continue
+            
+            # Create payroll entry
+            payroll = Payroll.objects.create(
+                business=business,
+                employee=employee,
+                pay_period_start=period_start,
+                pay_period_end=period_end,
+                pay_period_type='monthly',  # Default to monthly
+                basic_salary=employee.base_salary_amount,
+                pay_date=period_end + timedelta(days=7),  # Pay 7 days after period end
+                created_by=request.user,
+                status='draft'
+            )
+            
+            created_payrolls.append(PayrollDetailSerializer(payroll).data)
+            
+        except Exception as e:
+            errors.append(f'Error creating payroll for {employee.full_name}: {str(e)}')
+    
+    return Response({
+        'success': True,
+        'created_payrolls': created_payrolls,
+        'created_count': len(created_payrolls),
+        'errors': errors
+    })

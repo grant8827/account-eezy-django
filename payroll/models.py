@@ -132,31 +132,31 @@ class Payroll(models.Model):
         paye_amount = Decimal('0')
         if taxable_income > 0:
             # Jamaica tax brackets for 2024
-            if taxable_income <= 1500000:
+            if taxable_income <= Decimal('1500000'):
                 paye_amount = Decimal('0')
-            elif taxable_income <= 6000000:
-                paye_amount = (taxable_income - 1500000) * Decimal('0.25')
+            elif taxable_income <= Decimal('6000000'):
+                paye_amount = (taxable_income - Decimal('1500000')) * Decimal('0.25')
             else:
-                paye_amount = (4500000 * Decimal('0.25')) + ((taxable_income - 6000000) * Decimal('0.30'))
+                paye_amount = (Decimal('4500000') * Decimal('0.25')) + ((taxable_income - Decimal('6000000')) * Decimal('0.30'))
         
         self.paye_taxable_income = taxable_income
         self.paye_amount = paye_amount / 12  # Monthly amount
         
         # NIS Contribution (3% on income up to JMD 1M annually)
-        nisable_income = min(annual_gross, 1000000)
-        self.nis_contribution = (nisable_income * self.nis_rate) / 12
+        nisable_income = min(annual_gross, Decimal('1000000'))
+        self.nis_contribution = (nisable_income * Decimal(str(self.nis_rate))) / 12
         
         # Education Tax (2.5% on income above JMD 500k annually)
-        education_taxable_income = max(0, annual_gross - self.education_tax_threshold)
-        self.education_tax_amount = (education_taxable_income * self.education_tax_rate) / 12
+        education_taxable_income = max(Decimal('0'), annual_gross - self.education_tax_threshold)
+        self.education_tax_amount = (education_taxable_income * Decimal(str(self.education_tax_rate))) / 12
         
         # HEART Trust/NTA (3% on income)
-        self.heart_trust_amount = (annual_gross * self.heart_trust_rate) / 12
+        self.heart_trust_amount = (annual_gross * Decimal(str(self.heart_trust_rate))) / 12
         
         # Pension contribution (if applicable)
         if self.pension_employee_rate > 0:
-            self.pension_employee_contribution = self.gross_earnings * self.pension_employee_rate
-            self.pension_employer_contribution = self.gross_earnings * self.pension_employer_rate
+            self.pension_employee_contribution = self.gross_earnings * Decimal(str(self.pension_employee_rate))
+            self.pension_employer_contribution = self.gross_earnings * Decimal(str(self.pension_employer_rate))
     
     def calculate_totals(self):
         """Calculate gross earnings, total deductions, and net pay"""

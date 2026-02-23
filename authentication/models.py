@@ -96,7 +96,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     last_login_time = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
-    current_business_id = models.BigIntegerField(null=True, blank=True)
+
     
     # Set email as the username field
     USERNAME_FIELD = 'email'

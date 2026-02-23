@@ -78,7 +78,7 @@ class Business(models.Model):
     ]
     
     # Basic Information
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_businesses')
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='business')
     business_name = models.CharField(max_length=100)
     registration_number = models.CharField(max_length=50, unique=True)
     trn = models.CharField(
